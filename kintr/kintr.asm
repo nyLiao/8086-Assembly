@@ -7,7 +7,7 @@ data_seg segment
     kc  DB  1eh, 30h, 2eh, 20h, 12h, 21h, 22h, 23h, 17h, 24h, 25h, 26h, 32h, 31h, 18h, 19h, 10h, 13h, 1fh, 14h, 16h, 2fh, 11h, 2dh, 15h, 2ch
     ; Other parameters
     tm  DW  625;        timer counter, for 16 us * 625 = 10 s
-    fl  DB  0;          flag showing masked or not, 1 for masked
+    fl  DB  1;          flag showing masked or not, 1 for masked
 data_seg ends
 
 
@@ -39,6 +39,27 @@ start:
     call far ptr newint09;
     call far ptr newint08;
 
+    hang:
+    ; keyboard is disabled and not respond for input
+        mov  ax, tm
+        cmp  cx, ax
+        ; if time < 625 (10 s)
+        jb   hang;      loop back
+
+        ; else
+        mov  cx, 0;     clear counter
+
+        ; enable keyboard
+        ; in   al, 21h;   read IMR from 8259
+        ; and  al, 0fdh;  set IMR_1 to 0 to enable keyboard interrupt
+        ; out  21h, al;   write IMR to 8259
+        ; mov  al, 20h;   Non-Specific EOI
+        ; out  20h, al
+        mov  al, 0
+        mov  fl, al
+
+        jmp  open;      goto open loop
+
     open:
     ; keyboard is enabled and open for input
         mov  ax, tm
@@ -61,27 +82,6 @@ start:
         mov  fl, al
 
         jmp  hang;      goto hang loop
-
-    hang:
-    ; keyboard is disabled and not respond for input
-        mov  ax, tm
-        cmp  cx, ax
-        ; if time < 625 (10 s)
-        jb   hang;      loop back
-
-        ; else
-        mov  cx, 0;     clear counter
-
-        ; enable keyboard
-        ; in   al, 21h;   read IMR from 8259
-        ; and  al, 0fdh;  set IMR_1 to 0 to enable keyboard interrupt
-        ; out  21h, al;   write IMR to 8259
-        ; mov  al, 20h;   Non-Specific EOI
-        ; out  20h, al
-        mov  al, 0
-        mov  fl, al
-
-        jmp  open;      goto open loop
 
     exit:
         mov  dx, offset eop
